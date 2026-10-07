@@ -1,0 +1,4 @@
+/target/
+/skillgap-data.mv.db
+/skillgap-data.trace.db
+/.local-postgres-password

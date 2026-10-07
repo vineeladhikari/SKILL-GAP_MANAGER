@@ -1,0 +1,57 @@
+services:
+  - type: web
+    name: skill-gap-manager-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./BACKEND/Dockerfile
+    dockerContext: ./BACKEND
+    healthCheckPath: /api/roles
+    autoDeploy: true
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: skill-gap-manager-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: skill-gap-manager-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: skill-gap-manager-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: skill-gap-manager-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: skill-gap-manager-db
+          property: password
+      - key: SPRING_PROFILES_ACTIVE
+        value: postgres
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SESSION_COOKIE_SAME_SITE
+        value: "none"
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+
+databases:
+  - name: skill-gap-manager-db
+    databaseName: skillgap
+    user: skillgap
+    plan: basic-256mb
+    region: oregon
+    ipAllowList: []

@@ -1,0 +1,7 @@
+target/
+bin/
+.git/
+.idea/
+.settings/
+.env
+.env.*

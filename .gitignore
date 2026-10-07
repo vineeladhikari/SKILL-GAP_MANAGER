@@ -1,0 +1,26 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Passwords / secret files
+.local-postgres-password
+**/.local-postgres-password
+*.key
+*.pem
+
+# Node
+node_modules/
+
+# Java / Maven
+target/
+bin/
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+Thumbs.db

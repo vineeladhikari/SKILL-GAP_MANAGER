@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6fc">
+  <meta name="description" content="Sign in to save your profile and map your current skills to your target career.">
+  <title>Skill Gap Manager</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Skill Gap Manager home">
+      <span class="brand-mark" aria-hidden="true">SG</span>
+      <span>Skill Gap Manager</span>
+    </a>
+    <div class="account-bar" hidden>
+      <span class="workspace-label" id="account-email"></span>
+      <button class="button button-secondary button-small" id="logout" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <div id="auth-screen" class="auth-screen">
+      <section class="auth-hero" aria-labelledby="hero-title">
+        <p class="eyebrow hero-kicker">YOUR CAREER WORKSPACE</p>
+        <h1 id="hero-title">Turn the skills you have into the career you want.</h1>
+        <p class="hero-intro">A clear, personal view of where you are now—and what to learn next.</p>
+        <div class="hero-features">
+          <article class="hero-feature">
+            <span class="feature-number">01</span>
+            <div><h2>Your profile, ready when you are</h2><p>Sign in from any device and pick up where you left off.</p></div>
+          </article>
+          <article class="hero-feature">
+            <span class="feature-number">02</span>
+            <div><h2>Progress that grows with you</h2><p>Save skills for each role and update them whenever you like.</p></div>
+          </article>
+          <article class="hero-feature">
+            <span class="feature-number">03</span>
+            <div><h2>A practical next step</h2><p>See what you already know and focus on the gaps that matter.</p></div>
+          </article>
+        </div>
+        <p class="hero-note"><span aria-hidden="true">●</span> Your account keeps your profile and progress together.</p>
+      </section>
+      <section id="auth-panel" class="panel auth-panel" aria-labelledby="auth-title">
+        <div class="panel-heading">
+          <div><p class="eyebrow">YOUR ACCOUNT</p><h2 id="auth-title">Welcome back.</h2></div>
+        </div>
+        <p class="section-intro" id="auth-description">Sign in to see your saved profile and skills from any device.</p>
+        <form id="auth-form">
+          <div class="field-grid auth-fields">
+            <div class="field field-wide">
+              <label for="auth-email">Email</label>
+              <input id="auth-email" name="email" type="email" autocomplete="username" maxlength="254" required>
+            </div>
+            <div class="field field-wide">
+              <label for="auth-password">Password</label>
+              <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="4" maxlength="72" required>
+              <span class="field-help" id="password-help">Use at least 4 characters.</span>
+            </div>
+          </div>
+          <p class="error-message" id="auth-error" role="alert" aria-live="polite"></p>
+          <div class="panel-actions auth-actions">
+            <button class="button button-primary" id="auth-submit" type="submit">Sign in</button>
+            <button class="button button-secondary" id="auth-mode" type="button">Create account</button>
+          </div>
+          <button class="text-button forgot-link" id="forgot-password" type="button">Forgot password?</button>
+        </form>
+        <form id="forgot-form" hidden>
+          <div class="field-grid auth-fields">
+            <div class="field field-wide">
+              <label for="forgot-email">Email</label>
+              <input id="forgot-email" name="email" type="email" autocomplete="email" maxlength="254" required>
+            </div>
+          </div>
+          <p class="error-message" id="forgot-error" role="alert" aria-live="polite"></p>
+          <p class="save-status" id="forgot-status" role="status" aria-live="polite"></p>
+          <div class="panel-actions auth-actions">
+            <button class="button button-primary" id="forgot-submit" type="submit">Send OTP</button>
+            <button class="button button-secondary" id="forgot-back" type="button">Back to sign in</button>
+          </div>
+        </form>
+        <form id="reset-form" hidden>
+          <div class="field-grid auth-fields">
+            <div class="field field-wide">
+              <label for="reset-token">Verification code</label>
+              <input id="reset-token" name="otp" type="text" autocomplete="one-time-code" inputmode="numeric" minlength="6" maxlength="6" required>
+            </div>
+            <div class="field field-wide">
+              <label for="reset-password">New password</label>
+              <input id="reset-password" name="password" type="password" autocomplete="new-password" minlength="4" maxlength="72" required>
+            </div>
+            <div class="field field-wide">
+              <label for="reset-confirm">Confirm new password</label>
+              <input id="reset-confirm" name="confirmPassword" type="password" autocomplete="new-password" minlength="4" maxlength="72" required>
+              <span class="field-help">Use at least 4 characters.</span>
+            </div>
+          </div>
+          <p class="error-message" id="reset-error" role="alert" aria-live="polite"></p>
+          <div class="panel-actions auth-actions">
+            <button class="button button-primary" id="reset-submit" type="submit">Verify code &amp; reset password</button>
+            <button class="button button-secondary" id="reset-back" type="button">Back to sign in</button>
+          </div>
+        </form>
+        <p class="auth-trust">Your password is protected and never displayed in your profile.</p>
+      </section>
+    </div>
+
+    <div id="manager" hidden>
+      <div class="page-heading">
+        <p class="eyebrow">YOUR NEXT MOVE</p>
+        <h1>Build toward the role you want.</h1>
+        <p class="page-intro">Your profile and skill progress are saved to your account.</p>
+      </div>
+
+      <section id="s1" class="panel" aria-labelledby="profile-title">
+        <div class="panel-heading">
+          <div><p class="eyebrow"> PROFILE</p><h2 id="profile-title">Set your direction</h2></div>
+          <span class="step-tag">Your starting point</span>
+        </div>
+        <form id="profile-form">
+          <div class="field-grid">
+            <div class="field field-wide"><label for="name">Your name</label><input id="name" name="name" autocomplete="name" placeholder="e.g. GAMBEERA" required></div>
+            <div class="field"><label for="edu">Education</label>
+              <select id="edu" name="edu" required><option value="" disabled selected>Select education</option><option>B.Tech</option><option>M.Tech</option><option>BCA</option><option>MCA</option><option>B.Sc</option></select></div>
+            <div class="field"><label for="branch">Study area</label>
+              <select id="branch" name="branch" required><option value="" disabled selected>Select area</option><option>CSE</option><option>IT</option><option>ECE</option><option>EEE</option><option>Mechanical</option><option>Civil</option></select></div>
+            <div class="field"><label for="year">Current year</label>
+              <select id="year" name="year" required><option value="" disabled selected>Select year</option><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>Graduated</option></select></div>
+            <div class="field"><label for="exp">Experience</label>
+              <select id="exp" name="exp" required><option value="" disabled selected>Select experience</option><option>Fresher</option><option>0–1 years</option><option>1–3 years</option><option>3+ years</option></select></div>
+            <div class="field field-wide"><label for="job">Target role</label><select id="job" name="job" required><option value="" disabled selected>Select a target role</option></select></div>
+          </div>
+          <p class="error-message" id="err" role="alert" aria-live="polite"></p>
+          <p class="save-status" id="save-status" role="status" aria-live="polite"></p>
+          <div class="panel-actions"><button class="button button-primary" type="submit">Continue to skills <span aria-hidden="true">→</span></button></div>
+        </form>
+      </section>
+
+      <section id="s2" class="panel" aria-labelledby="skills-title" hidden>
+        <div class="panel-heading">
+          <div><p class="eyebrow">02 / SKILLS</p><h2 id="skills-title">What can you do today?</h2></div>
+          <span class="step-tag" id="skill-count"></span>
+        </div>
+        <p class="section-intro" id="s2sub"></p>
+        <div class="skill-list" id="list"></div>
+        <p class="error-message" id="skills-error" role="alert" aria-live="polite"></p>
+        <p class="save-status" id="skills-save-status" role="status" aria-live="polite"></p>
+        <div class="panel-actions panel-actions-split">
+          <button class="button button-secondary" id="back1" type="button">← Edit profile</button>
+          <button class="button button-primary" id="analyze" type="button">View my gap <span aria-hidden="true">→</span></button>
+        </div>
+      </section>
+
+      <section id="s3" class="panel" aria-labelledby="results-title" hidden>
+        <div class="panel-heading">
+          <div><p class="eyebrow">03 / YOUR SNAPSHOT</p><h2 id="results-title"></h2></div>
+          <div class="readiness-ring" id="readiness-ring" role="progressbar" aria-label="Skills developed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span id="readiness-value">0%</span>
+          </div>
+        </div>
+        <p class="section-intro" id="score"></p>
+        <div class="results-grid">
+          <section class="result-column" aria-labelledby="have-title"><h3 id="have-title">Already in your toolkit</h3><ul class="result-list" id="have"></ul></section>
+          <section class="result-column result-column-gap" aria-labelledby="gaps-title"><h3 id="gaps-title">Your learning priorities</h3><ul class="result-list" id="gaps"></ul></section>
+        </div>
+        <div class="panel-actions panel-actions-split">
+          <button class="button button-secondary" id="edit-profile" type="button">Edit profile</button>
+          <button class="button button-primary" id="back2" type="button">Update skills <span aria-hidden="true">→</span></button>
+        </div>
+      </section>
+    </div>
+
+    <footer class="page-footer">Your profile and skill progress are saved securely to your account.</footer>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
