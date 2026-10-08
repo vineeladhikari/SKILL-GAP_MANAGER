@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://skill-gap-manager-api.onrender.com/api/:path*"
+      "destination": "https://vk-skilltech-backend.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
