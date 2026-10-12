@@ -11,7 +11,7 @@ A responsive skill assessment app. Create an account with your email and passwor
 
 Start the Java API from `BACKEND` with JDK 25. It uses a local file-backed H2 database by default. For local PostgreSQL 18, use the `BACKEND/scripts/setup-local-postgres.ps1` setup script once, then `BACKEND/scripts/run-local-postgres.ps1` whenever you want to run the API against PostgreSQL. The SQL query for viewing saved account/profile data is `BACKEND/sql/view-user-profiles.sql`; details are in the repository [deployment guide](../DEPLOYMENT.md).
 
-Optionally set `VITE_API_BASE_URL` if the API is not at `http://localhost:8080`, then run:
+Optionally set `VITE_API_BASE_URL` if the API is not at `http://localhost:8081`, then run:
 
 ```sh
 npm install

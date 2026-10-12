@@ -88,7 +88,12 @@ function showResetPassword() {
   byId("auth-title").textContent = "Choose a new password.";
   byId("auth-description").textContent = "Enter the 6-digit code from your email and choose a new password.";
   byId("reset-error").textContent = "";
-  byId("reset-token").focus();
+  if (resetToken) {
+    byId("reset-token").value = resetToken;
+    byId("reset-password").focus();
+  } else {
+    byId("reset-token").focus();
+  }
 }
 
 function selectedSkills(job) {
@@ -190,6 +195,7 @@ function appendItems(list, items, emptyMessage) {
 function showResults() {
   const job = byId("job").value;
   const skills = JOBS[job];
+  if (!skills || !skills.length) return;
   const selected = new Set(selectedSkills(job));
   const have = skills.filter((skill) => selected.has(skill));
   const gaps = skills.filter((skill) => !selected.has(skill));
@@ -411,12 +417,14 @@ byId("logout").addEventListener("click", async () => {
 if (resetToken) {
   byId("auth-screen").hidden = false;
   showResetPassword();
+  refreshCsrfToken().catch(() => {});
 } else {
   loadAccount().catch((error) => {
-    if (error.status === 401) {
-      byId("auth-screen").hidden = false;
-    } else {
-      byId("auth-error").textContent = `Could not connect to the account service. ${error.message}`;
+    byId("auth-screen").hidden = false;
+    if (error.status !== 401) {
+      byId("auth-error").textContent = error instanceof TypeError
+        ? "Could not reach the service. Check your connection and try again."
+        : `Could not connect to the account service. ${error.message}`;
     }
   });
 }

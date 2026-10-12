@@ -4,7 +4,7 @@ The frontend and API are deployed separately. Email/password accounts, profile d
 
 ## Before deploying
 
-1. Push the project to a GitHub repository. This workspace is not currently a Git repository.
+1. Push your changes to the connected GitHub repository (`https://github.com/vineeladhikari/SKILL-GAP_MANAGER.git`).
 2. Create accounts with Render and Vercel and connect the GitHub repository to each service.
 
 ## Deploy the API to Render
@@ -21,7 +21,7 @@ The API blueprint uses Render's free service plan, which may spin down while idl
 1. In Vercel, add a project and select the same GitHub repository.
 2. Set **Root Directory** to `FRONTEND`.
 3. Keep the Vite build settings from `FRONTEND/vercel.json`: `npm run build` with `dist` as the output directory.
-4. The Vercel rewrite proxies `/api/*` to `https://skill-gap-manager-api.onrender.com`, keeping session cookies same-origin in the browser. If Render assigns a different API URL, update the rewrite destination in `FRONTEND/vercel.json` before deploying.
+4. The Vercel rewrite proxies `/api/*` to `https://vk-skilltech-backend.onrender.com` (or your assigned Render API URL), keeping session cookies same-origin in the browser. If Render assigns a different API URL, update the rewrite destination in `FRONTEND/vercel.json` before deploying.
 5. Deploy and open the assigned Vercel URL.
 
 After the first Vercel deployment, set the exact Vercel origin in Render's `APP_CORS_ALLOWED_ORIGINS`, then redeploy the API. If Vercel assigns a new production domain, update that value accordingly. Preview domains are not automatically trusted.

@@ -257,6 +257,24 @@ class AccountIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void publicEndpointsRolesAndAnalyzeAreAccessible() throws Exception {
+        mockMvc.perform(get("/api/roles"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.['Java Developer']").isArray());
+
+        mockMvc.perform(post("/api/analyze")
+                        .with(csrf())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "job", "Java Developer",
+                                "knownSkills", List.of("Core Java & OOP", "Spring Boot")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.job", is("Java Developer")))
+                .andExpect(jsonPath("$.coveredSkills.length()", is(2)))
+                .andExpect(jsonPath("$.missingSkills.length()", is(12)));
+    }
+
     private Cookie registerAndLogin(String email) throws Exception {
         String credentials = objectMapper.writeValueAsString(Map.of("email", email, "password", PASSWORD));
         mockMvc.perform(post("/api/auth/register")
