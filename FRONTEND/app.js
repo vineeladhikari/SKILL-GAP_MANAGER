@@ -307,10 +307,15 @@ byId("forgot-form").addEventListener("submit", async (event) => {
       body: { email: byId("forgot-email").value.trim() }
     });
     byId("forgot-status").textContent = result.message;
+    if (result?.devOtp) {
+      setTimeout(() => {
+        showResetPassword();
+        byId("reset-token").value = result.devOtp;
+        byId("reset-password").focus();
+      }, 1500);
+    }
   } catch (error) {
-    byId("forgot-error").textContent = error.status === 503
-        ? "Password reset email is not set up on the server. The site administrator needs to configure Gmail SMTP credentials."
-      : error instanceof TypeError
+    byId("forgot-error").textContent = error instanceof TypeError
         ? "Could not reach the service. Check your connection and try again."
         : error.message;
   } finally {

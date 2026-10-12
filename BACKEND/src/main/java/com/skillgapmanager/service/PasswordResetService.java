@@ -63,23 +63,30 @@ public class PasswordResetService {
         this.secureRandom = secureRandom;
     }
 
-    public void requestReset(String email) {
-        if (!emailService.isConfigured()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Password-reset email is not configured. Please try again later.");
+    public String requestReset(String email) {
+        String normalizedEmail = AccountService.normalizeEmail(email);
+        var accountOpt = accounts.findByEmail(normalizedEmail);
+        if (accountOpt.isEmpty()) {
+            return null;
         }
-        accounts.findByEmail(AccountService.normalizeEmail(email)).ifPresent(account -> {
-            Instant now = clock.instant();
-            if (resetTokens.countByAccountIdAndCreatedAtAfter(account.getId(), now.minus(REQUEST_WINDOW))
-                    >= MAX_REQUESTS_PER_HOUR) {
-                return;
-            }
 
-            String otp = createOtp();
-            resetTokens.save(new PasswordResetToken(account.getId(), hashToken(otp), now,
-                    now.plus(TOKEN_LIFETIME)));
+        var account = accountOpt.get();
+        Instant now = clock.instant();
+        if (resetTokens.countByAccountIdAndCreatedAtAfter(account.getId(), now.minus(REQUEST_WINDOW))
+                >= MAX_REQUESTS_PER_HOUR) {
+            return null;
+        }
+
+        String otp = createOtp();
+        resetTokens.save(new PasswordResetToken(account.getId(), hashToken(otp), now,
+                now.plus(TOKEN_LIFETIME)));
+
+        if (emailService.isConfigured()) {
             emailService.sendPasswordReset(account.getEmail(), otp);
-        });
+            return null;
+        } else {
+            return otp;
+        }
     }
 
     @Transactional

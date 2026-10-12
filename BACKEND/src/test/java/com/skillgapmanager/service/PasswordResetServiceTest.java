@@ -147,6 +147,23 @@ class PasswordResetServiceTest {
         assertEquals(hash(otp), tokenCaptor.getValue().getTokenHash());
     }
 
+    @Test
+    void requestResetReturnsOtpWhenEmailServiceIsNotConfigured() {
+        when(emailService.isConfigured()).thenReturn(false);
+        Account account = mock(Account.class);
+        when(account.getId()).thenReturn(12L);
+        when(account.getEmail()).thenReturn("learner@example.com");
+        when(accounts.findByEmail("learner@example.com")).thenReturn(Optional.of(account));
+        when(resetTokens.countByAccountIdAndCreatedAtAfter(eq(12L), any())).thenReturn(0L);
+
+        String otp = service.requestReset("learner@example.com");
+
+        org.junit.jupiter.api.Assertions.assertNotNull(otp);
+        assertEquals(6, otp.length());
+        verify(emailService, never()).sendPasswordReset(any(), any());
+        verify(resetTokens).save(any());
+    }
+
     private static String hash(String value) {
         try {
             byte[] digest = java.security.MessageDigest.getInstance("SHA-256")

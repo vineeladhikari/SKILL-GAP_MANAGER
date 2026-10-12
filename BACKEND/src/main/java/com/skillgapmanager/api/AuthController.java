@@ -61,7 +61,12 @@ public class AuthController {
     @PostMapping("/forgot-password")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public MessageResponse forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        passwordResetService.requestReset(request.email());
+        String devOtp = passwordResetService.requestReset(request.email());
+        if (devOtp != null) {
+            return new MessageResponse(
+                    "SMTP is not configured on the server. Your verification code is: " + devOtp,
+                    devOtp);
+        }
         return new MessageResponse("If an account exists for this email, a one-time verification code will be sent.");
     }
 
@@ -113,6 +118,9 @@ public class AuthController {
     public record CsrfResponse(String token) {
     }
 
-    public record MessageResponse(String message) {
+    public record MessageResponse(String message, String devOtp) {
+        public MessageResponse(String message) {
+            this(message, null);
+        }
     }
 }
