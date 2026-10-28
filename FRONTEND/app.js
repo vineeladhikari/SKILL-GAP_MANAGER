@@ -17,11 +17,12 @@ const API_REQUEST_TIMEOUT_MS = 90_000;
 const byId = (id) => document.getElementById(id);
 const sections = [byId("s1"), byId("s2"), byId("s3")];
 const state = { account: null, profile: {}, skillsByJob: {} };
+const routes = new Set(["/", "/profile", "/skills", "/results", "/forgot-password", "/reset-password"]);
 let csrfToken = "";
+let accountReady = false;
 let isRegisterMode = false;
 let saveTimer;
 let csrfPromise = null;
-const resetToken = new URLSearchParams(window.location.search).get("resetToken");
 
 function setButtonLoading(button, text) {
   if (!button) return;
@@ -116,9 +117,128 @@ async function api(path, options = {}) {
   return result;
 }
 
-function showSection(activeSection) {
+function currentPath() {
+  const hashRoute = window.location.hash.slice(1);
+  const route = hashRoute.startsWith("/") ? hashRoute : window.location.pathname;
+  return route.split("?")[0].replace(/\/+$/, "") || "/";
+}
+
+function currentRouteSearch() {
+  const hashRoute = window.location.hash.slice(1);
+  const query = hashRoute.startsWith("/") ? hashRoute.split("?")[1] || "" : window.location.search.slice(1);
+  return new URLSearchParams(query);
+}
+
+function setVisibleSection(activeSection) {
   sections.forEach((section) => { section.hidden = section !== activeSection; });
   activeSection.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function updateNavigationControls(path = currentPath()) {
+  const isHome = path === "/";
+  const isProfileWithoutHistory = path === "/profile" && history.state?.skillGapIndex === 0;
+  byId("back-navigation").hidden = isHome || isProfileWithoutHistory;
+  byId("home-navigation").hidden = isHome;
+}
+
+function navigateTo(path, { replace = false } = {}) {
+  const target = new URL(path, window.location.origin);
+  const destination = `/#${target.pathname}${target.search}`;
+  if (window.location.hash === destination.slice(1)) {
+    renderRoute();
+    return;
+  }
+  const index = Number.isInteger(history.state?.skillGapIndex) ? history.state.skillGapIndex : 0;
+  const nextState = { ...(history.state || {}), skillGapIndex: replace ? index : index + 1 };
+  if (replace) history.replaceState(nextState, "", destination);
+  else history.pushState(nextState, "", destination);
+  renderRoute();
+}
+
+function goBack() {
+  if (Number.isInteger(history.state?.skillGapIndex) && history.state.skillGapIndex > 0) {
+    history.back();
+  } else {
+    navigateTo("/", { replace: true });
+  }
+}
+
+function renderRoute() {
+  const path = currentPath();
+  if (!routes.has(path)) {
+    navigateTo("/", { replace: true });
+    return;
+  }
+
+  if (path === "/" && state.account) {
+    navigateTo("/profile", { replace: true });
+    return;
+  }
+
+  const resetToken = currentRouteSearch().get("resetToken");
+  if (path === "/" || path === "/forgot-password" || path === "/reset-password") {
+    byId("manager").hidden = true;
+    byId("auth-screen").hidden = false;
+    document.querySelector(".account-bar").hidden = true;
+    if (path === "/forgot-password") showForgotPassword();
+    else if (path === "/reset-password" || resetToken) showResetPassword(resetToken);
+    else setAuthMode(false);
+    updateNavigationControls(path);
+    return;
+  }
+
+  if (!state.account && !accountReady) {
+    byId("auth-screen").hidden = false;
+    byId("manager").hidden = true;
+    document.querySelector(".account-bar").hidden = true;
+    setAuthMode(false);
+    updateNavigationControls(path);
+    return;
+  }
+
+  if (!state.account) {
+    navigateTo("/", { replace: true });
+    return;
+  }
+
+  if ((path === "/skills" || path === "/results") && !byId("job").value) {
+    navigateTo("/profile", { replace: true });
+    return;
+  }
+
+  byId("auth-screen").hidden = true;
+  byId("manager").hidden = false;
+  document.querySelector(".account-bar").hidden = false;
+  if (path === "/profile") setVisibleSection(byId("s1"));
+  if (path === "/skills") {
+    renderSkillList(byId("job").value);
+    setVisibleSection(byId("s2"));
+  }
+  if (path === "/results") {
+    renderResults();
+    setVisibleSection(byId("s3"));
+  }
+  updateNavigationControls(path);
+}
+
+function initializeHistory() {
+  if (!Number.isInteger(history.state?.skillGapIndex)) {
+    history.replaceState({ ...(history.state || {}), skillGapIndex: 0 }, "", window.location.href);
+  }
+  window.addEventListener("popstate", renderRoute);
+  byId("back-navigation").addEventListener("click", goBack);
+  document.querySelectorAll("[data-route]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      if (state.account && link.getAttribute("href") === "/") {
+        navigateTo("/profile", { replace: true });
+      } else {
+        navigateTo(link.getAttribute("href"));
+      }
+    });
+  });
+  renderRoute();
 }
 
 function setAuthMode(register) {
@@ -149,15 +269,15 @@ function showForgotPassword() {
   byId("forgot-email").focus();
 }
 
-function showResetPassword() {
+function showResetPassword(token = null) {
   byId("auth-form").hidden = true;
   byId("forgot-form").hidden = true;
   byId("reset-form").hidden = false;
   byId("auth-title").textContent = "Choose a new password.";
   byId("auth-description").textContent = "Enter the 6-digit code from your email and choose a new password.";
   byId("reset-error").textContent = "";
-  if (resetToken) {
-    byId("reset-token").value = resetToken;
+  if (token) {
+    byId("reset-token").value = token;
     byId("reset-password").focus();
   } else {
     byId("reset-token").focus();
@@ -260,7 +380,7 @@ function appendItems(list, items, emptyMessage) {
   });
 }
 
-function showResults() {
+function renderResults() {
   const job = byId("job").value;
   const skills = JOBS[job];
   if (!skills || !skills.length) return;
@@ -277,7 +397,6 @@ function showResults() {
   const readinessRing = byId("readiness-ring");
   readinessRing.style.setProperty("--progress", `${percentage}%`);
   readinessRing.setAttribute("aria-valuenow", String(percentage));
-  showSection(byId("s3"));
 }
 
 function populateRoles() {
@@ -312,7 +431,6 @@ function showManager(account, profile) {
   byId("err").textContent = "";
   byId("save-status").textContent = profile ? "Your saved profile is ready." : "";
   byId("skills-save-status").textContent = "";
-  showSection(byId("s1"));
 }
 
 async function loadAccount(account = null) {
@@ -322,15 +440,22 @@ async function loadAccount(account = null) {
   }
   const profile = await api("/api/account/profile").catch(() => null);
   showManager(account, profile);
+  accountReady = true;
+  if (currentPath() === "/") {
+    navigateTo("/profile", { replace: true });
+  } else {
+    renderRoute();
+  }
 }
 
 populateRoles();
 setAuthMode(false);
+initializeHistory();
 
 byId("auth-mode").addEventListener("click", () => setAuthMode(!isRegisterMode));
-byId("forgot-password").addEventListener("click", showForgotPassword);
-byId("forgot-back").addEventListener("click", () => setAuthMode(false));
-byId("reset-back").addEventListener("click", () => setAuthMode(false));
+byId("forgot-password").addEventListener("click", () => navigateTo("/forgot-password"));
+byId("forgot-back").addEventListener("click", goBack);
+byId("reset-back").addEventListener("click", goBack);
 byId("auth-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!byId("auth-form").reportValidity()) return;
@@ -391,9 +516,7 @@ byId("forgot-form").addEventListener("submit", async (event) => {
     byId("forgot-status").textContent = result.message;
     if (result?.devOtp) {
       setTimeout(() => {
-        showResetPassword();
-        byId("reset-token").value = result.devOtp;
-        byId("reset-password").focus();
+        navigateTo(`/reset-password?resetToken=${encodeURIComponent(result.devOtp)}`);
       }, 1500);
     }
   } catch (error) {
@@ -435,7 +558,7 @@ byId("reset-form").addEventListener("submit", async (event) => {
     byId("reset-token").value = "";
     byId("reset-password").value = "";
     byId("reset-confirm").value = "";
-    setAuthMode(false);
+    navigateTo("/");
     byId("auth-error").textContent = "Your password was reset. Sign in with your new password.";
   } catch (error) {
     byId("reset-error").textContent = error.status === 400
@@ -457,7 +580,7 @@ byId("profile-form").addEventListener("submit", async (event) => {
   try {
     await saveProfile();
     renderSkillList(state.profile.job);
-    showSection(byId("s2"));
+    navigateTo("/skills");
   } catch {
     // The save error is shown next to the profile form.
   }
@@ -468,17 +591,17 @@ byId("analyze").addEventListener("click", async () => {
   saveSelectedSkills();
   try {
     await saveProfile();
-    showResults();
+    navigateTo("/results");
   } catch {
     byId("skills-error").textContent = "Your changes could not be saved. Please try again.";
   }
 });
-byId("back1").addEventListener("click", () => showSection(byId("s1")));
+byId("back1").addEventListener("click", () => navigateTo("/profile"));
 byId("back2").addEventListener("click", () => {
   renderSkillList(byId("job").value);
-  showSection(byId("s2"));
+  navigateTo("/skills");
 });
-byId("edit-profile").addEventListener("click", () => showSection(byId("s1")));
+byId("edit-profile").addEventListener("click", () => navigateTo("/profile"));
 byId("logout").addEventListener("click", async () => {
   try {
     if (saveTimer) {
@@ -491,11 +614,12 @@ byId("logout").addEventListener("click", async () => {
     state.profile = {};
     state.skillsByJob = {};
     csrfToken = "";
+    accountReady = true;
     document.querySelector(".account-bar").hidden = true;
     byId("manager").hidden = true;
     byId("auth-screen").hidden = false;
     byId("auth-error").textContent = "";
-    setAuthMode(false);
+    navigateTo("/", { replace: true });
   } catch (error) {
     byId("err").textContent = `Sign out failed. ${error.message}`;
   }
@@ -504,11 +628,18 @@ byId("logout").addEventListener("click", async () => {
 // Pre-warm backend and initialize CSRF token in the background immediately
 ensureCsrfToken().catch(() => {});
 
-if (resetToken) {
-  byId("auth-screen").hidden = false;
-  showResetPassword();
+if (currentPath() === "/reset-password"
+    || currentPath() === "/forgot-password"
+    || currentRouteSearch().has("resetToken")) {
+  renderRoute();
 } else {
   loadAccount().catch((error) => {
+    accountReady = true;
+    if (currentPath() !== "/" && currentPath() !== "/forgot-password") {
+      navigateTo("/", { replace: true });
+    } else {
+      renderRoute();
+    }
     byId("auth-screen").hidden = false;
     if (error.status !== 401) {
       byId("auth-error").textContent = error instanceof TypeError
