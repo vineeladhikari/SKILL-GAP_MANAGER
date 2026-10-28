@@ -4,6 +4,11 @@ services:
     runtime: docker
     plan: free
     region: oregon
+    branch: main
+    buildFilter:
+      paths:
+        - BACKEND/**
+        - render.yaml
     dockerfilePath: ./BACKEND/Dockerfile
     dockerContext: ./BACKEND
     healthCheckPath: /api/roles
@@ -47,6 +52,22 @@ services:
         sync: false
       - key: MAIL_FROM
         sync: false
+
+  - type: web
+    name: vk-skilltech
+    runtime: static
+    branch: main
+    rootDir: FRONTEND
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    buildFilter:
+      paths:
+        - FRONTEND/**
+        - render.yaml
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://vk-skilltech-backend.onrender.com
 
 databases:
   - name: skill-gap-manager-db

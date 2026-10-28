@@ -10,21 +10,35 @@ The frontend and API are deployed separately. Email/password accounts, profile d
 ## Deploy the API to Render
 
 1. In Render, create a **Blueprint** and select the connected repository.
-2. Render will read the root `render.yaml`, create the PostgreSQL database, and build the API using `BACKEND/Dockerfile`.
-3. The API's `APP_CORS_ALLOWED_ORIGINS` is set to `https://vk-skilltech.onrender.com` in `render.yaml`, allowing the Render-hosted frontend to call the API.
-4. After the first deploy, open the service URL and verify `/api/roles` returns the role list.
+2. Render reads the root `render.yaml`. The API service builds with `BACKEND/Dockerfile`; the static frontend builds with `npm install && npm run build` from `FRONTEND` and publishes `dist`.
+3. Both services declare the `main` branch and automatic deploys. Build filters trigger the frontend for `FRONTEND/**` changes and the API for `BACKEND/**` changes; changes to `render.yaml` trigger both. The API's `APP_CORS_ALLOWED_ORIGINS` allows `https://vk-skilltech.onrender.com`.
+4. The database and mail credentials remain external/secret Render settings; the Blueprint references them without storing secret values.
+5. After a Blueprint sync, verify the existing services were updated rather than duplicated, that both remain connected to this repository's `main` branch, and that `/api/roles` returns the role list.
 
 The API blueprint uses Render's free service plan, which may spin down while idle (taking ~40–60 seconds on the first request to wake up). The frontend allows up to 90 seconds per API request, then displays an error and re-enables sign-in so it cannot spin indefinitely. To keep the free instance warm and avoid sign-in delays, you can set up a free uptime monitor (such as UptimeRobot or cron-job.org) to ping `https://<your-render-url>/api/roles` every 10–14 minutes. The PostgreSQL blueprint uses the `basic-256mb` plan for durable database storage; review Render's current pricing before creating resources. Database contents will remain stored independently of API restarts.
 
 ## Deploy the frontend to Render
 
-For the existing website at `https://vk-skilltech.onrender.com`, open its Render **Static Site** settings and confirm:
+For the existing website at `https://vk-skilltech.onrender.com`, the Blueprint configures:
 
+- **Production branch:** `main`
+- **Auto-Deploy:** enabled
 - **Root Directory:** `FRONTEND`
 - **Build Command:** `npm install && npm run build`
 - **Publish Directory:** `dist`
+- **API base URL:** `https://vk-skilltech-backend.onrender.com`
 
-The production frontend automatically uses `https://vk-skilltech-backend.onrender.com` when hosted at `vk-skilltech.onrender.com`. No API URL environment variable is required. Push changes to the connected Git repository to trigger a redeploy, or manually deploy the latest commit in Render.
+The API base URL is supplied at build time as `VITE_API_BASE_URL`, so no manual environment-variable setup is needed when the Blueprint is synced.
+
+## Verify existing Render services
+
+The local repository cannot read the Render Dashboard's service-to-repository connections or deployment settings. Before syncing the Blueprint, check each existing service in Render:
+
+1. In **Settings → Build & Deploy**, confirm both services point to `vineeladhikari/SKILL-GAP_MANAGER` and production branch `main`.
+2. Confirm **Auto-Deploy** is enabled for both services (or select **On Commit**).
+3. If Render reports that the Blueprint would create a duplicate rather than update an existing service, stop the sync and keep the existing service; configure its branch, auto-deploy, build filter, and frontend `VITE_API_BASE_URL` in the service settings instead.
+
+Render's Dashboard controls whether a Blueprint is connected and synced. The checked-in YAML alone cannot change or prove those account-level settings.
 
 ## Deploy the frontend to Vercel
 
