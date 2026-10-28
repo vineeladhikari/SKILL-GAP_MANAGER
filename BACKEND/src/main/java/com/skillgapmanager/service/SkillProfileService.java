@@ -35,6 +35,11 @@ public class SkillProfileService {
     }
 
     @Transactional
+    public void delete(Long accountId) {
+        profiles.findByAccountId(accountId).ifPresent(profiles::delete);
+    }
+
+    @Transactional
     public SkillProfileResponse save(Long accountId, SkillProfileRequest request) {
         Map<String, List<String>> knownRoles = skillGapService.getRoles();
         if (!knownRoles.containsKey(request.job())) {

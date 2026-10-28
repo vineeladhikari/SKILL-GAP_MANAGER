@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: skill-gap-manager-api
+    name: vk-skilltech-backend
     runtime: docker
     plan: free
     region: oregon
@@ -41,7 +41,7 @@ services:
       - key: SESSION_COOKIE_SAME_SITE
         value: "none"
       - key: APP_CORS_ALLOWED_ORIGINS
-        value: https://vk-skilltech.onrender.com
+        value: https://vk-skilltech.onrender.com,http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173
       - key: MAIL_HOST
         value: smtp.gmail.com
       - key: MAIL_PORT

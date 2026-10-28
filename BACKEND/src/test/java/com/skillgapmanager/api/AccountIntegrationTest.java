@@ -27,6 +27,7 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -155,6 +156,14 @@ class AccountIntegrationTest {
                 .andExpect(jsonPath("$.job", is("Java Developer")))
                 .andExpect(jsonPath("$.skillsByJob['Java Developer'][0]", is("Core Java & OOP")))
                 .andExpect(jsonPath("$.skillsByJob['Java Developer'].length()", is(1)));
+
+        mockMvc.perform(delete("/api/account/profile")
+                        .cookie(sessionCookie)
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/account/profile").cookie(sessionCookie))
+                .andExpect(status().isNoContent());
     }
 
     @Test

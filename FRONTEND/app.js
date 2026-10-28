@@ -6,13 +6,11 @@ const JOBS = {
   "Full Stack Developer": ["HTML, CSS, JavaScript", "React or similar", "Node.js/Express or Spring Boot", "REST APIs", "SQL & NoSQL", "Git & GitHub", "Authentication", "Docker basics", "Deployment basics"]
 };
 
-const LOCAL_API_BASE = `${window.location.protocol}//${window.location.hostname}:8081`;
+const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 const RENDER_API_BASE = "https://vk-skilltech-backend.onrender.com";
 const isRenderFrontend = window.location.hostname === "vk-skilltech.onrender.com";
 const API_BASE = (import.meta.env?.VITE_API_BASE_URL
-  ?? (import.meta.env?.PROD
-    ? (isRenderFrontend ? RENDER_API_BASE : "")
-    : LOCAL_API_BASE)).replace(/\/$/, "");
+  ?? (isRenderFrontend ? RENDER_API_BASE : "")).replace(/\/$/, "");
 const API_REQUEST_TIMEOUT_MS = 90_000;
 const byId = (id) => document.getElementById(id);
 const sections = [byId("s1"), byId("s2"), byId("s3")];
@@ -380,15 +378,7 @@ function appendItems(list, items, emptyMessage) {
   });
 }
 
-function renderResults() {
-  const job = byId("job").value;
-  const skills = JOBS[job];
-  if (!skills || !skills.length) return;
-  const selected = new Set(selectedSkills(job));
-  const have = skills.filter((skill) => selected.has(skill));
-  const gaps = skills.filter((skill) => !selected.has(skill));
-  const percentage = Math.round((have.length / skills.length) * 100);
-
+function renderResultsWithData(job, skills, have, gaps, percentage) {
   byId("results-title").textContent = `${byId("name").value.trim()}, your ${job} snapshot`;
   byId("readiness-value").textContent = `${percentage}%`;
   byId("score").textContent = `${have.length} of ${skills.length} skills covered · ${byId("year").value} · ${byId("edu").value} ${byId("branch").value}`;
@@ -399,14 +389,69 @@ function renderResults() {
   readinessRing.setAttribute("aria-valuenow", String(percentage));
 }
 
+async function renderResults() {
+  const job = byId("job").value;
+  const skills = JOBS[job];
+  if (!skills || !skills.length) return;
+  const selected = new Set(selectedSkills(job));
+  const localHave = skills.filter((skill) => selected.has(skill));
+  const localGaps = skills.filter((skill) => !selected.has(skill));
+  const localPercentage = Math.round((localHave.length / skills.length) * 100);
+
+  // Render immediately for instant responsiveness
+  renderResultsWithData(job, skills, localHave, localGaps, localPercentage);
+
+  // Verify and sync with backend analysis endpoint
+  try {
+    const analysis = await api("/api/analyze", {
+      method: "POST",
+      body: { job, knownSkills: Array.from(selected) }
+    });
+    if (analysis && Array.isArray(analysis.coveredSkills) && Array.isArray(analysis.missingSkills)) {
+      renderResultsWithData(job, skills, analysis.coveredSkills, analysis.missingSkills, analysis.readinessPercent);
+    }
+  } catch {
+    // If backend is unreachable, the local calculation remains displayed
+  }
+}
+
 function populateRoles() {
   const jobSelect = byId("job");
+  const currentValue = jobSelect.value;
+  jobSelect.replaceChildren();
+
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.disabled = true;
+  defaultOption.selected = !currentValue;
+  defaultOption.textContent = "Select a target role";
+  jobSelect.append(defaultOption);
+
   Object.keys(JOBS).forEach((job) => {
     const option = document.createElement("option");
     option.value = job;
     option.textContent = job;
+    if (job === currentValue) option.selected = true;
     jobSelect.append(option);
   });
+}
+
+async function loadRolesFromBackend() {
+  try {
+    const roles = await api("/api/roles");
+    if (roles && typeof roles === "object" && Object.keys(roles).length > 0) {
+      for (const key of Object.keys(JOBS)) {
+        delete JOBS[key];
+      }
+      Object.assign(JOBS, roles);
+      populateRoles();
+      if (byId("job").value) {
+        renderSkillList(byId("job").value);
+      }
+    }
+  } catch {
+    // Fall back to built-in JOBS catalog
+  }
 }
 
 function showManager(account, profile) {
@@ -449,6 +494,7 @@ async function loadAccount(account = null) {
 }
 
 populateRoles();
+loadRolesFromBackend().catch(() => {});
 setAuthMode(false);
 initializeHistory();
 
@@ -627,6 +673,7 @@ byId("logout").addEventListener("click", async () => {
 
 // Pre-warm backend and initialize CSRF token in the background immediately
 ensureCsrfToken().catch(() => {});
+loadRolesFromBackend().catch(() => {});
 
 if (currentPath() === "/reset-password"
     || currentPath() === "/forgot-password"
