@@ -7,30 +7,99 @@ const JOBS = {
 };
 
 const LOCAL_API_BASE = `${window.location.protocol}//${window.location.hostname}:8081`;
-const API_BASE = (import.meta.env?.VITE_API_BASE_URL ?? (import.meta.env?.PROD ? "" : LOCAL_API_BASE)).replace(/\/$/, "");
+const API_BASE = (import.meta.env?.VITE_API_BASE_URL
+  ?? (import.meta.env?.PROD ? "" : LOCAL_API_BASE)).replace(/\/$/, "");
+const API_REQUEST_TIMEOUT_MS = 90_000;
 const byId = (id) => document.getElementById(id);
 const sections = [byId("s1"), byId("s2"), byId("s3")];
 const state = { account: null, profile: {}, skillsByJob: {} };
 let csrfToken = "";
 let isRegisterMode = false;
 let saveTimer;
+let csrfPromise = null;
 const resetToken = new URLSearchParams(window.location.search).get("resetToken");
+
+function setButtonLoading(button, text) {
+  if (!button) return;
+  button.disabled = true;
+  button.dataset.originalText = button.textContent;
+  button.classList.add("is-loading");
+  button.innerHTML = `<span class="button-spinner" aria-hidden="true"></span><span>${text}</span>`;
+}
+
+function resetButtonLoading(button, fallbackText) {
+  if (!button) return;
+  button.disabled = false;
+  button.classList.remove("is-loading");
+  button.textContent = button.dataset.originalText || fallbackText || "Submit";
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("The account service did not respond within 90 seconds. It may be waking up; please try again.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function refreshCsrfToken() {
+  if (csrfPromise) return csrfPromise;
+  csrfPromise = (async () => {
+    const response = await fetchWithTimeout(`${API_BASE}/api/auth/csrf`, { credentials: "include" });
+    if (!response.ok) {
+      throw new Error(`Could not establish a secure session (${response.status}). Please try again.`);
+    }
+    const data = await response.json();
+    csrfToken = data?.token || "";
+    if (!csrfToken) {
+      throw new Error("The account service did not provide a secure session token. Please try again.");
+    }
+    return csrfToken;
+  })().finally(() => {
+    csrfPromise = null;
+  });
+  return csrfPromise;
+}
+
+async function ensureCsrfToken() {
+  if (csrfToken) return csrfToken;
+  return refreshCsrfToken();
+}
 
 async function api(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();
   const headers = new Headers(options.headers || {});
   if (options.body !== undefined) headers.set("Content-Type", "application/json");
-  if (csrfToken && !["GET", "HEAD", "OPTIONS"].includes(method)) {
-    headers.set("X-XSRF-TOKEN", csrfToken);
+
+  if (!["GET", "HEAD", "OPTIONS"].includes(method) && !path.includes("/api/auth/csrf")) {
+    if (!csrfToken) {
+      await ensureCsrfToken();
+    }
+    if (csrfToken) {
+      headers.set("X-XSRF-TOKEN", csrfToken);
+    }
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetchWithTimeout(`${API_BASE}${path}`, {
     ...options,
     method,
     headers,
     credentials: "include",
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
   });
+
+  if (response.status === 403 && !options._csrfRetry && !["GET", "HEAD", "OPTIONS"].includes(method)) {
+    await refreshCsrfToken();
+    return api(path, { ...options, _csrfRetry: true });
+  }
+
   if (response.status === 204) return null;
 
   const contentType = response.headers.get("content-type") || "";
@@ -41,11 +110,6 @@ async function api(path, options = {}) {
     throw error;
   }
   return result;
-}
-
-async function refreshCsrfToken() {
-  const result = await api("/api/auth/csrf");
-  csrfToken = result.token;
 }
 
 function showSection(activeSection) {
@@ -247,10 +311,12 @@ function showManager(account, profile) {
   showSection(byId("s1"));
 }
 
-async function loadAccount() {
-  await refreshCsrfToken();
-  const account = await api("/api/auth/me");
-  const profile = await api("/api/account/profile");
+async function loadAccount(account = null) {
+  if (!account) {
+    await ensureCsrfToken();
+    account = await api("/api/auth/me");
+  }
+  const profile = await api("/api/account/profile").catch(() => null);
   showManager(account, profile);
 }
 
@@ -266,19 +332,31 @@ byId("auth-form").addEventListener("submit", async (event) => {
   if (!byId("auth-form").reportValidity()) return;
 
   const submit = byId("auth-submit");
-  submit.disabled = true;
+  const actionText = isRegisterMode ? "Creating account..." : "Signing in...";
+  setButtonLoading(submit, actionText);
   byId("auth-error").textContent = "";
+  byId("auth-error").className = "error-message";
+
+  const warmTimer = setTimeout(() => {
+    byId("auth-error").className = "save-status server-waking-note";
+    byId("auth-error").textContent = "Connecting to server... (Render free service may take 30–50s to wake up if idle)";
+  }, 2500);
+
   try {
-    await refreshCsrfToken();
     const credentials = {
       email: byId("auth-email").value.trim(),
       password: byId("auth-password").value
     };
     if (isRegisterMode) await api("/api/auth/register", { method: "POST", body: credentials });
-    await api("/api/auth/login", { method: "POST", body: credentials });
+    const account = await api("/api/auth/login", { method: "POST", body: credentials });
     byId("auth-password").value = "";
-    await loadAccount();
+    clearTimeout(warmTimer);
+    byId("auth-error").className = "error-message";
+    byId("auth-error").textContent = "";
+    await loadAccount(account);
   } catch (error) {
+    clearTimeout(warmTimer);
+    byId("auth-error").className = "error-message";
     if (error.status === 409) {
       byId("auth-error").textContent = "An account already exists for this email. Sign in instead.";
     } else if (error.status === 401) {
@@ -289,7 +367,8 @@ byId("auth-form").addEventListener("submit", async (event) => {
       byId("auth-error").textContent = error.message;
     }
   } finally {
-    submit.disabled = false;
+    clearTimeout(warmTimer);
+    resetButtonLoading(submit, isRegisterMode ? "Create account" : "Sign in");
   }
 });
 
@@ -297,11 +376,10 @@ byId("forgot-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!byId("forgot-form").reportValidity()) return;
   const submit = byId("forgot-submit");
-  submit.disabled = true;
+  setButtonLoading(submit, "Sending OTP...");
   byId("forgot-error").textContent = "";
   byId("forgot-status").textContent = "";
   try {
-    await refreshCsrfToken();
     const result = await api("/api/auth/forgot-password", {
       method: "POST",
       body: { email: byId("forgot-email").value.trim() }
@@ -319,7 +397,7 @@ byId("forgot-form").addEventListener("submit", async (event) => {
         ? "Could not reach the service. Check your connection and try again."
         : error.message;
   } finally {
-    submit.disabled = false;
+    resetButtonLoading(submit, "Send OTP");
   }
 });
 
@@ -343,10 +421,9 @@ byId("reset-form").addEventListener("submit", async (event) => {
   if (!byId("reset-form").reportValidity()) return;
 
   const submit = byId("reset-submit");
-  submit.disabled = true;
+  setButtonLoading(submit, "Resetting password...");
   byId("reset-error").textContent = "";
   try {
-    await refreshCsrfToken();
     await api("/api/auth/reset-password", {
       method: "POST",
       body: { token: otpCode, password: byId("reset-password").value }
@@ -363,9 +440,10 @@ byId("reset-form").addEventListener("submit", async (event) => {
         ? "Could not reach the service. Check your connection and try again."
         : error.message;
   } finally {
-    submit.disabled = false;
+    resetButtonLoading(submit, "Verify code & reset password");
   }
 });
+
 
 byId("profile-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -419,10 +497,12 @@ byId("logout").addEventListener("click", async () => {
   }
 });
 
+// Pre-warm backend and initialize CSRF token in the background immediately
+ensureCsrfToken().catch(() => {});
+
 if (resetToken) {
   byId("auth-screen").hidden = false;
   showResetPassword();
-  refreshCsrfToken().catch(() => {});
 } else {
   loadAccount().catch((error) => {
     byId("auth-screen").hidden = false;

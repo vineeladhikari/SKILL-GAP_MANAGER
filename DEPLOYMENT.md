@@ -11,20 +11,31 @@ The frontend and API are deployed separately. Email/password accounts, profile d
 
 1. In Render, create a **Blueprint** and select the connected repository.
 2. Render will read the root `render.yaml`, create the PostgreSQL database, and build the API using `BACKEND/Dockerfile`.
-3. Set `APP_CORS_ALLOWED_ORIGINS` on the API service to the exact Vercel origin (for example, `https://your-project.vercel.app`; no trailing slash).
+3. The API's `APP_CORS_ALLOWED_ORIGINS` is set to `https://vk-skilltech.onrender.com` in `render.yaml`, allowing the Render-hosted frontend to call the API.
 4. After the first deploy, open the service URL and verify `/api/roles` returns the role list.
 
-The API blueprint uses Render's free service plan, which may spin down while idle. The PostgreSQL blueprint uses the `basic-256mb` plan for durable database storage; review Render's current pricing before creating resources. Database contents will remain stored independently of API restarts.
+The API blueprint uses Render's free service plan, which may spin down while idle (taking ~40–60 seconds on the first request to wake up). The frontend allows up to 90 seconds per API request, then displays an error and re-enables sign-in so it cannot spin indefinitely. To keep the free instance warm and avoid sign-in delays, you can set up a free uptime monitor (such as UptimeRobot or cron-job.org) to ping `https://<your-render-url>/api/roles` every 10–14 minutes. The PostgreSQL blueprint uses the `basic-256mb` plan for durable database storage; review Render's current pricing before creating resources. Database contents will remain stored independently of API restarts.
+
+## Deploy the frontend to Render
+
+For the existing website at `https://vk-skilltech.onrender.com`, open its Render **Static Site** settings and set:
+
+- **Root Directory:** `FRONTEND`
+- **Build Command:** `npm install && npm run build`
+- **Publish Directory:** `dist`
+- **Environment Variable:** `VITE_API_BASE_URL=https://vk-skilltech-backend.onrender.com`
+
+Save the environment variable and redeploy the static site. This sends sign-in and other API calls to the API service at `https://vk-skilltech-backend.onrender.com`; the API CORS origin is configured in the root `render.yaml`.
 
 ## Deploy the frontend to Vercel
 
 1. In Vercel, add a project and select the same GitHub repository.
 2. Set **Root Directory** to `FRONTEND`.
 3. Keep the Vite build settings from `FRONTEND/vercel.json`: `npm run build` with `dist` as the output directory.
-4. The Vercel rewrite proxies `/api/*` to `https://vk-skilltech-backend.onrender.com` (or your assigned Render API URL), keeping session cookies same-origin in the browser. If Render assigns a different API URL, update the rewrite destination in `FRONTEND/vercel.json` before deploying.
+4. The Vercel rewrite proxies `/api/*` to `https://vk-skilltech-backend.onrender.com` (or your assigned Render API URL), keeping session cookies same-origin in the browser. Leave `VITE_API_BASE_URL` unset on Vercel so it uses this same-origin proxy. If Render assigns a different API URL, update the rewrite destination in `FRONTEND/vercel.json` before deploying.
 5. Deploy and open the assigned Vercel URL.
 
-After the first Vercel deployment, set the exact Vercel origin in Render's `APP_CORS_ALLOWED_ORIGINS`, then redeploy the API. If Vercel assigns a new production domain, update that value accordingly. Preview domains are not automatically trusted.
+After the first Vercel deployment, verify `/api/roles` through the Vercel site. If using a different frontend origin to call the API directly, add that exact origin to Render's `APP_CORS_ALLOWED_ORIGINS`; preview domains are not automatically trusted.
 
 ## Configure password reset email
 
