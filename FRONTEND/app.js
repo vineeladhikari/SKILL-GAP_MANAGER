@@ -7,8 +7,12 @@ const JOBS = {
 };
 
 const LOCAL_API_BASE = `${window.location.protocol}//${window.location.hostname}:8081`;
+const RENDER_API_BASE = "https://vk-skilltech-backend.onrender.com";
+const isRenderFrontend = window.location.hostname === "vk-skilltech.onrender.com";
 const API_BASE = (import.meta.env?.VITE_API_BASE_URL
-  ?? (import.meta.env?.PROD ? "" : LOCAL_API_BASE)).replace(/\/$/, "");
+  ?? (import.meta.env?.PROD
+    ? (isRenderFrontend ? RENDER_API_BASE : "")
+    : LOCAL_API_BASE)).replace(/\/$/, "");
 const API_REQUEST_TIMEOUT_MS = 90_000;
 const byId = (id) => document.getElementById(id);
 const sections = [byId("s1"), byId("s2"), byId("s3")];

@@ -18,14 +18,13 @@ The API blueprint uses Render's free service plan, which may spin down while idl
 
 ## Deploy the frontend to Render
 
-For the existing website at `https://vk-skilltech.onrender.com`, open its Render **Static Site** settings and set:
+For the existing website at `https://vk-skilltech.onrender.com`, open its Render **Static Site** settings and confirm:
 
 - **Root Directory:** `FRONTEND`
 - **Build Command:** `npm install && npm run build`
 - **Publish Directory:** `dist`
-- **Environment Variable:** `VITE_API_BASE_URL=https://vk-skilltech-backend.onrender.com`
 
-Save the environment variable and redeploy the static site. This sends sign-in and other API calls to the API service at `https://vk-skilltech-backend.onrender.com`; the API CORS origin is configured in the root `render.yaml`.
+The production frontend automatically uses `https://vk-skilltech-backend.onrender.com` when hosted at `vk-skilltech.onrender.com`. No API URL environment variable is required. Push changes to the connected Git repository to trigger a redeploy, or manually deploy the latest commit in Render.
 
 ## Deploy the frontend to Vercel
 
